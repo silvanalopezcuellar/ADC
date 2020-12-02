@@ -1,0 +1,197 @@
+/*vf
+ * 7egments.c
+ *
+ * Created: 26/02/2016 9:05:18 a. m.
+ * Author : MariaPaola
+ */ 
+/////////////////////////////////////////////////// Inclusión de headers /////////////////////////////////////
+
+#ifndef F_CPU
+#define F_CPU 1000000UL
+#endif
+#include <avr/io.h>
+/////////////////////////////////////////////////// Definición de funciones //////////////////////////////////
+void Seven_segments(int num);
+void Seven_segments_P(int num);
+/////////////////////////////////////////////////// Definición de MEF ////////////////////////////////////////
+typedef enum STATE state_m;
+enum STATE{Dig0,Dig1,Dig2,Dig3};
+/////////////////////////////////////////////////// MAIN ///////////////////////////////////////////////////////
+int main(void)
+{
+	state_m state;
+	state = Dig0;
+
+	DDRA |= 0xFF;		//Salidas 7 Segmentos
+	DDRC |= 0xF0;		//Salidas anodos
+	
+	DDRD &= ~(0xFF);		//Entradas digitales 0-7
+	DDRC &= ~(0x07);		//Entradas digitales 8-10
+	DDRB &= ~(0x1F);		//Entradas digitales 10-15
+	
+	PORTA = ~(0x3F);		//numero 0 inicialmente en el 7 segmentos
+	PORTC &= ~(0xF0);		//No prendo ningun led
+	
+	PORTC |= 0xF0;			//inicializo anodos apagados
+	
+	TCCR0=0x04;
+	TCCR2=0x07;
+	
+	TCNT0=0x00;
+	TCNT2=0x00;
+	
+	int cont=0, Digi0=0, Digi1=0, Digi2=0, Digi3=0, num=0, timer=0, V1=0, V2=0, i=0, prom=0;
+	float Vrms=0, Vprom=0, Vmed=0;
+	int Bits[16]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+	
+	while (1)
+	{	
+	
+		if(TCNT2==255)				 
+		{
+		TCNT2=0;
+		timer++;
+		}
+		if (timer==4)
+		{
+				//PORTA = ~(0xFF);
+				
+				Bits[15]=PINB &_BV(PB0);
+				Bits[14]=PINB &_BV(PB1);
+				Bits[13]=PINB &_BV(PB2);
+				Bits[12]=PINB &_BV(PB3);
+				Bits[11]=PINB &_BV(PB4);
+				Bits[10]=PINC &_BV(PC2);
+				Bits[9]=PINC &_BV(PC1);
+				Bits[8]=PINC &_BV(PC0);
+				Bits[7]=PIND &_BV(PD7);
+				Bits[6]=PIND &_BV(PD6);
+				Bits[5]=PIND &_BV(PD5);
+				Bits[4]=PIND &_BV(PD4);				
+				Bits[3]=PIND &_BV(PD3);
+				Bits[2]=PIND &_BV(PD2);
+				Bits[1]=PIND &_BV(PD1);
+				Bits[0]=PIND &_BV(PD0);
+				
+				V1 = (Bits[7]) + (Bits[6]) + (Bits[5]) + (Bits[4]) + (Bits[3]) + (Bits[2]) + (Bits[1]) + (Bits[0]);
+				V2 = (Bits[15]*128) + (Bits[14]*32) + (Bits[13]*8) + (Bits[12]*2) + (Bits[11]*(0.5)) + (Bits[10]) + (Bits[9]) + (Bits[8]);
+				Vmed = V1*0.1953125;
+				Vmed = Vmed + (V2*0.01953125);
+				Vmed = (34.1-(Vmed*0.041))*Vmed;
+				Vprom = Vprom + Vmed;
+				prom++;
+		}
+		if(prom==30)
+		{	
+				Vrms=Vprom*0.0333333333333;
+				Digi0=Vrms, Digi1=(Vrms/10), Digi2=(Vrms/100), Digi3=(Vrms/1000);
+				timer=0;
+				prom=0;
+				Vprom=0;
+		}
+			if (TCNT0==1)
+			{
+				TCNT0=0;
+				if(state==Dig0)
+				state=Dig1;
+				else if(state==Dig1)
+				state=Dig2;
+				else if(state==Dig2)
+				state=Dig3;
+				else if(state==Dig3)
+				state=Dig0;
+			}			
+		switch (state)
+		{
+			
+			case Dig0:
+				num=Digi0%10;
+				Seven_segments(num);
+				PORTC &= ~(0x80);
+				
+			break;
+			
+			case Dig1:
+				num=Digi1%10;
+				Seven_segments_P(num);
+				PORTC &= ~(0x40);
+				
+			break;
+			
+			case Dig2:
+				num=Digi2%10;
+				Seven_segments(num);
+				PORTC &= ~(0x20);
+				
+			break;
+			
+			case Dig3:
+				num=Digi3;
+				Seven_segments(num);
+				PORTC &= ~(0x10);
+			break;
+			}
+		}
+	}
+ 
+
+
+////////////////////////////////////////////////////FUNCIONES////////////////////////////////////////////////////////
+void Seven_segments(int num)
+{
+	PORTC |= 0xF0;
+	PORTA = ~(0xFF);
+	
+	
+	if(num==0)
+	{PORTA = ~(0x3F);}
+	else if(num==1)
+	{PORTA = ~(0x06);}
+	else if(num==2)
+	{PORTA = ~(0x5B);}
+	else if(num==3)
+	{PORTA = ~(0x4F);}
+	else if(num==4)
+	{PORTA = ~(0x66);}
+	else if(num==5)
+	{PORTA = ~(0x6D);}
+	else if(num==6)
+	{PORTA = ~(0x7D);}
+	else if(num==7)
+	{PORTA = ~(0x07);}
+	else if(num==8)
+	{PORTA = ~(0x7F);}
+	else if(num==9)
+	{PORTA = ~(0x6F);}
+	else
+	{PORTA = ~(0x40);}
+}
+void Seven_segments_P(int num)
+{
+	PORTC |= 0xF0;
+	PORTA = ~(0xFF);
+	
+	
+	if(num==0)
+	{PORTA = ~(0xBF);}
+	else if(num==1)
+	{PORTA = ~(0x86);}
+	else if(num==2)
+	{PORTA = ~(0xDB);}
+	else if(num==3)
+	{PORTA = ~(0xCF);}
+	else if(num==4)
+	{PORTA = ~(0xE6);}
+	else if(num==5)
+	{PORTA = ~(0xED);}
+	else if(num==6)
+	{PORTA = ~(0xFD);}
+	else if(num==7)
+	{PORTA = ~(0x87);}
+	else if(num==8)
+	{PORTA = ~(0xFF);}
+	else if(num==9)
+	{PORTA = ~(0xEF);}
+	else
+	{PORTA = ~(0xC0);}
+}
